@@ -1,3 +1,5 @@
+import boto3
+import json
 def get_user_details(iam_client, user_name):
     user_details = iam_client.get_user(UserName=user_name)['User']
     user_details['UserPolicies'] = iam_client.list_user_policies(UserName=user_name)['PolicyNames']
