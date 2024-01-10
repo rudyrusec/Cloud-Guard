@@ -1,7 +1,9 @@
 import boto3
 
-def get_regions(ec2_client):
-    return [region['RegionName'] for region in ec2_client.describe_regions()['Regions']]
+def get_all_regions():
+    ec2_client = boto3.client('ec2')
+    regions = [region['RegionName'] for region in ec2_client.describe_regions()['Regions']]
+    return regions
 
 def get_vpcs(ec2_client):
     return ec2_client.describe_vpcs()['Vpcs']
@@ -30,11 +32,9 @@ def get_instance_details(ec2_client, instance):
     return instance_details
 
 def main():
-    ec2_client = boto3.client('ec2')
-
     infrastructure = {}
 
-    for region in get_regions(ec2_client):
+    for region in get_all_regions():
         ec2_client = boto3.client('ec2', region_name=region)
         infrastructure[region] = {"VPCs": []}
 
