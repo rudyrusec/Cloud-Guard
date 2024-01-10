@@ -1,5 +1,14 @@
 import boto3
 import json
+from datetime import datetime
+
+# Function to convert datetime to a serializable format
+def datetime_to_string(o):
+    if isinstance(o, datetime):
+        return o.isoformat()
+    return o
+
+# Function to get detailed information about a user
 def get_user_details(iam_client, user_name):
     user_details = iam_client.get_user(UserName=user_name)['User']
     user_details['UserPolicies'] = iam_client.list_user_policies(UserName=user_name)['PolicyNames']
@@ -8,6 +17,7 @@ def get_user_details(iam_client, user_name):
     user_details['MFADevices'] = iam_client.list_mfa_devices(UserName=user_name)['MFADevices']
     return user_details
 
+# Function to get information about all IAM groups
 def get_iam_groups(iam_client):
     groups = iam_client.list_groups()['Groups']
     for group in groups:
@@ -17,6 +27,7 @@ def get_iam_groups(iam_client):
         group['Users'] = [get_user_details(iam_client, user['UserName']) for user in group_users]
     return groups
 
+# Function to get information about all IAM roles
 def get_iam_roles(iam_client):
     roles = iam_client.list_roles()['Roles']
     for role in roles:
@@ -32,7 +43,7 @@ def main():
     }
 
     with open('aws_iam_data.json', 'w') as file:
-        json.dump(iam_data, file, indent=4)
+        json.dump(iam_data, file, indent=4, default=datetime_to_string)
 
 if __name__ == "__main__":
     main()
