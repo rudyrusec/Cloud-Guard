@@ -1,18 +1,66 @@
 import boto3
 
-def check_security_groups():
-    # Create a boto3 EC2 client
-    ec2 = boto3.client('ec2')
+def get_regions(ec2_client):
+    return [region['RegionName'] for region in ec2_client.describe_regions()['Regions']]
 
-    # Retrieve all security groups
-    response = ec2.describe_security_groups()
+def get_vpcs(ec2_client):
+    return ec2_client.describe_vpcs()['Vpcs']
 
-    # Check for rules allowing 0.0.0.0/0
-    for group in response['SecurityGroups']:
-        for permission in group['IpPermissions']:
-            for ip_range in permission['IpRanges']:
-                if ip_range['CidrIp'] == '0.0.0.0/0':
-                    print(f"Security Group '{group['GroupName']}' (ID: {group['GroupId']}) has an open rule: {permission}")
+def get_vpc_peerings(ec2_client, vpc_id):
+    peerings = ec2_client.describe_vpc_peering_connections(
+        Filters=[{'Name': 'requester-vpc-info.vpc-id', 'Values': [vpc_id]}])
+    return peerings['VpcPeeringConnections']
+
+def get_subnets(ec2_client, vpc_id):
+    return ec2_client.describe_subnets(Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])['Subnets']
+
+def get_instances(ec2_client, subnet_id):
+    return ec2_client.describe_instances(Filters=[{'Name': 'subnet-id', 'Values': [subnet_id]}])['Reservations']
+
+def get_security_group_details(ec2_client, group_ids):
+    security_groups = ec2_client.describe_security_groups(GroupIds=group_ids)['SecurityGroups']
+    return security_groups
+
+def get_instance_details(ec2_client, instance):
+    instance_details = {
+        'InstanceId': instance['InstanceId'],
+        'InstanceType': instance['InstanceType'],
+        'SecurityGroups': get_security_group_details(ec2_client, [sg['GroupId'] for sg in instance['SecurityGroups']])
+    }
+    return instance_details
+
+def main():
+    ec2_client = boto3.client('ec2')
+
+    infrastructure = {}
+
+    for region in get_regions(ec2_client):
+        ec2_client = boto3.client('ec2', region_name=region)
+        infrastructure[region] = {"VPCs": []}
+
+        for vpc in get_vpcs(ec2_client):
+            vpc_info = {
+                "VpcId": vpc['VpcId'],
+                "VpcPeeringConnections": get_vpc_peerings(ec2_client, vpc['VpcId']),
+                "Subnets": []
+            }
+
+            for subnet in get_subnets(ec2_client, vpc['VpcId']):
+                subnet_info = {
+                    "SubnetId": subnet['SubnetId'],
+                    "Instances": []
+                }
+
+                for reservation in get_instances(ec2_client, subnet['SubnetId']):
+                    for instance in reservation['Instances']:
+                        instance_details = get_instance_details(ec2_client, instance)
+                        subnet_info["Instances"].append(instance_details)
+
+                vpc_info["Subnets"].append(subnet_info)
+
+            infrastructure[region]["VPCs"].append(vpc_info)
+
+    print(infrastructure)
 
 if __name__ == "__main__":
-    check_security_groups()
+    main()
