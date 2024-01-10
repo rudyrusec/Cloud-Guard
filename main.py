@@ -1,5 +1,5 @@
 import boto3
-
+import json
 def get_all_regions():
     ec2_client = boto3.client('ec2')
     regions = [region['RegionName'] for region in ec2_client.describe_regions()['Regions']]
@@ -60,7 +60,9 @@ def main():
 
             infrastructure[region]["VPCs"].append(vpc_info)
 
-    print(infrastructure)
+    with open('aws_infrastructure.json', 'w') as file:
+        json.dump(infrastructure, file, indent=4)
+
 
 if __name__ == "__main__":
     main()
