@@ -34,16 +34,39 @@ def get_iam_roles(iam_client):
         role['RolePolicies'] = iam_client.list_role_policies(RoleName=role['RoleName'])['PolicyNames']
         role['AttachedRolePolicies'] = iam_client.list_attached_role_policies(RoleName=role['RoleName'])['AttachedPolicies']
     return roles
+def read_config(file_name):
+    config = {}
+    with open(file_name, 'r') as file:
+        for line in file:
+            key, value = line.strip().split(': ')
+            config[key] = value
+    return config
 
 def main():
     iam_client = boto3.client('iam')
+    s3_client = boto3.client('s3')
+
     iam_data = {
         'Groups': get_iam_groups(iam_client),
         'Roles': get_iam_roles(iam_client)
     }
 
-    with open('aws_iam_data.json', 'w') as file:
-        json.dump(iam_data, file, indent=4, default=datetime_to_string)
+    # Read config file
+    config = read_config('config.txt')
+    bucket_name = config['bucket']
+    folder_path = config['folderpath']
+
+    # Generate JSON content
+    iam_json = json.dumps(iam_data, indent=4, default=datetime_to_string)
+
+    # Define object key
+    object_key = folder_path + 'aws_iam_data.json'
+
+    # Upload JSON content to S3
+    s3_client.put_object(Body=iam_json, Bucket=bucket_name, Key=object_key)
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
