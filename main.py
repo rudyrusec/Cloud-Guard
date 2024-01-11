@@ -97,7 +97,7 @@ def main():
     for region in get_all_regions():
         ec2_client = boto3.client('ec2', region_name=region)
         gd_client = boto3.client('guardduty', region_name=region)
-        ct_client = boto3.client('        cloudtrail', region_name=region)
+        ct_client = boto3.client('cloudtrail', region_name=region)
 
         infrastructure[region] = {
             "VPCs": [],
