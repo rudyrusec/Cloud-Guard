@@ -1,4 +1,5 @@
 import boto3
+import botocore
 import json
 from datetime import datetime
 
@@ -57,25 +58,50 @@ def get_instances(ec2_client, subnet_id):
             instances.append(instance)
     return instances
 
+# def get_security_group_details(ec2_client, group_ids):
+#     security_groups = ec2_client.describe_security_groups(GroupIds=group_ids)['SecurityGroups']
+#     return [
+#         {
+#             'GroupId': sg['GroupId'],
+#             'GroupName': sg['GroupName'],
+#             'IpPermissions': [
+#                 {
+#                     'IpProtocol': perm.get('IpProtocol', 'N/A'),
+#                     'FromPort': perm.get('FromPort', 'N/A'),
+#                     'ToPort': perm.get('ToPort', 'N/A'),
+#                     'IpRanges': perm.get('IpRanges', [])
+#                 } 
+#                 for perm in sg.get('IpPermissions', [])
+#             ]
+#         } 
+#         for sg in security_groups
+#     ]
 def get_security_group_details(ec2_client, group_ids):
-    security_groups = ec2_client.describe_security_groups(GroupIds=group_ids)['SecurityGroups']
-    return [
-        {
-            'GroupId': sg['GroupId'],
-            'GroupName': sg['GroupName'],
-            'IpPermissions': [
-                {
-                    'IpProtocol': perm.get('IpProtocol', 'N/A'),
-                    'FromPort': perm.get('FromPort', 'N/A'),
-                    'ToPort': perm.get('ToPort', 'N/A'),
-                    'IpRanges': perm.get('IpRanges', [])
-                } 
-                for perm in sg.get('IpPermissions', [])
-            ]
-        } 
-        for sg in security_groups
-    ]
+    # Initialize an empty list to hold the details of accessible security groups
+    valid_security_groups = []
 
+    for group_id in group_ids:
+        try:
+            response = ec2_client.describe_security_groups(GroupIds=[group_id])
+            sg = response['SecurityGroups'][0]  # Get the first (and only) security group in the response
+            sg_details = {
+                'GroupId': sg['GroupId'],
+                'GroupName': sg['GroupName'],
+                'IpPermissions': [
+                    {
+                        'IpProtocol': perm.get('IpProtocol', 'N/A'),
+                        'FromPort': perm.get('FromPort', 'N/A'),
+                        'ToPort': perm.get('ToPort', 'N/A'),
+                        'IpRanges': perm.get('IpRanges', [])
+                    }
+                    for perm in sg.get('IpPermissions', [])
+                ]
+            }
+            valid_security_groups.append(sg_details)
+        except botocore.exceptions.ClientError as e:
+            print(f"Error fetching security group {group_id}: {e}")
+
+    return valid_security_groups
 def get_instance_details(instance):
     public_ip = instance.get('PublicIpAddress', 'N/A')
     private_ip = instance.get('PrivateIpAddress', 'N/A')
