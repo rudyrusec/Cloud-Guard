@@ -91,8 +91,20 @@ def datetime_to_string(o):
     if isinstance(o, datetime):
         return o.isoformat()
     return o
+def read_config(file_name):
+    config = {}
+    with open(file_name, 'r') as file:
+        for line in file:
+            key, value = line.strip().split(': ')
+            config[key] = value
+    return config
+
 
 def main():
+    s3_client = boto3.client('s3')
+    config = read_config('config.txt')
+    bucket_name = config['bucket']
+    folder_path = config['folderpath']
     infrastructure = {}
     for region in get_all_regions():
         ec2_client = boto3.client('ec2', region_name=region)
@@ -133,11 +145,13 @@ def main():
                 infrastructure[region]["VPCs"].append(vpc_info)
 
     infrastructure_json = json.dumps(infrastructure, indent=4, default=datetime_to_string)
+    object_key = folder_path + 'aws_infrastructure.json'
+    s3_client.put_object(Body=infrastructure_json, Bucket=bucket_name, Key=object_key)
 
     # Here you can add code to save the JSON to a file or an S3 bucket
     # For example, to save it to a file:
-    with open('aws_infrastructure.json', 'w') as file:
-        file.write(infrastructure_json)
+    # with open('aws_infrastructure.json', 'w') as file:
+    #     file.write(infrastructure_json)
 
 if __name__ == "__main__":
     main()
